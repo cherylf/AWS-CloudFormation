@@ -1,0 +1,89 @@
+---
+Description: >-
+  This template creates a portfolio in the Hub account. The Hub portfolio contains two products - an elastic load balancer (ELB) and a S3 bucket. There are two versions of the ELB product and each version needs to have its own CloudFormation template. Thus, there are three CloudFormation templates (two for ELB and one for S3) stored in a S3 bucket within the Hub account. All products will be inherited by the portfolio in the Spoke account. Portofolios are region-based, hence each Spoke portfolio should have a corresponding Hub portfolio in the same region.
+Parameters:
+  ELBCFNPath:
+    Description: The full path to ELB product stored in a S3 bucket.
+    Type: String
+    Default: ""
+  ELBCFNPathV2:
+    Description: The full path to ELB product V2 stored in a S3 bucket.
+    Type: String
+    Default: ""
+  S3CFNPath:
+    Description: The full path to S3 product stored in a S3 bucket.
+    Type: String
+    Default: ""
+  SpokeAccountID:
+    Description: AWS Account ID of child portfolio. 
+    Type: String
+    Default: ""
+Resources:
+  HubPortfolio:
+    Type: "AWS::ServiceCatalog::Portfolio"
+    Properties:
+      AcceptLanguage: "en"
+      Description: "Sample Hub Portfolio"
+      DisplayName: "Sample Hub Portfolio"
+      ProviderName: "Demo Provider"
+  ELBProduct:
+    Type: "AWS::ServiceCatalog::CloudFormationProduct"
+    Properties:
+      AcceptLanguage: "en"
+      Description: "Product: Classic ELB with access logging enabled"
+      Distributor: "Demo Provider"
+      Name: "Classic ELB with access logging enabled" #required
+      Owner: "Demo Provider" #required
+      SupportEmail: "mysupport@example.com"
+      SupportDescription: "A classic ELB"
+      ProvisioningArtifactParameters: #required
+        -
+          Description: "Version 1 of classic ELB product"
+          Name: "Version - 1.0"
+          Info:
+            LoadTemplateFromURL : !Ref ELBCFNPath
+        -
+          Description: "Version 2 of classic ELB product"
+          Name: "Version - 2.0"
+          Info:
+            LoadTemplateFromURL : !Ref ELBCFNPathV2
+  S3Product:
+    Type: "AWS::ServiceCatalog::CloudFormationProduct"
+    Properties:
+      AcceptLanguage: "en"
+      Description: "Product: A simple S3 bucket"
+      Distributor: "Demo Provider"
+      Name: "A simple S3 bucket" #required
+      Owner: "Demo Provider" #required
+      SupportEmail: "mysupport@example.com"
+      SupportDescription: "A simple S3 bucket"
+      ProvisioningArtifactParameters: #required
+        -
+          Description: "Version 1 of a S3 product"
+          Name: "Version - 1.0"
+          Info:
+            LoadTemplateFromURL : !Ref S3CFNPath
+  PortfolioProductAssociation:
+    Type: "AWS::ServiceCatalog::PortfolioProductAssociation"
+    Properties:
+      AcceptLanguage: "en"
+      PortfolioId: !Ref HubPortfolio
+      ProductId: !Ref ELBProduct
+  PortfolioS3ProductAssociation:
+    Type: "AWS::ServiceCatalog::PortfolioProductAssociation"
+    Properties:
+      AcceptLanguage: "en"
+      PortfolioId: !Ref HubPortfolio
+      ProductId: !Ref S3Product
+  PortfolioShare:
+    Type: "AWS::ServiceCatalog::PortfolioShare"
+    Properties:
+      AccountId: !Ref SpokeAccountID
+      PortfolioId: !Ref HubPortfolio
+Outputs:
+  PortfolioID:
+    Value: !Ref HubPortfolio
+  ELBProductID:
+    Value: !Ref ELBProduct
+  S3ProductID:
+    Value: !Ref S3Product
