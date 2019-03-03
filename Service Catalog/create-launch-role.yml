@@ -1,0 +1,47 @@
+---
+AWSTemplateFormatVersion: 2010-09-09
+Description: >-
+  This CloudFormation template creates an IAM service-linked role for Service Catalog (SC).
+  The policy attached to the role should have sufficient permissions to launch product(s) 
+  from portfolio(s). The role ARN is exported so that it can be imported by another stack in
+  the same AWS account and region.
+Resources:
+  SCProductLaunchRole:
+    Type: 'AWS::IAM::Role'
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - servicecatalog.amazonaws.com
+            Action:
+              - 'sts:AssumeRole'
+      Path: /
+      Policies:
+        - PolicyName: ProductLaunchPolicy
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Sid: 'AllowPermissionsToLaunchProduct'
+                Effect: Allow
+                Action:
+                  - 'cloudformation:DescribeStackEvents'
+                  - 'cloudformation:UpdateStack'
+                  - 'cloudformation:DescribeStacks'
+                  - 'cloudformation:DeleteStack'
+                  - 'cloudformation:ValidateTemplate'
+                  - 'cloudformation:SetStackPolicy'
+                  - 'cloudformation:GetTemplateSummary'
+                  - 'cloudformation:CreateStack'
+                  - 'elasticloadbalancing:*'
+                  - 's3:*'
+                  - 'ec2:*'
+                Resource: '*'
+Outputs:
+  SCProductLaunchRoleArn:
+    Value: !GetAtt SCProductLaunchRole.Arn
+    Description: 'ARN of the Service Catalog Product Launch Role'
+    Export:
+      Name: ServiceCatalogProductLaunchRoleArn
