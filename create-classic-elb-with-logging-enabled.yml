@@ -1,0 +1,176 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: 
+  This template creates a (classic) elastic load balancer and a security group that will be assigned to the load balancer. Logs from the load balancer will be saved in existing S3 buckets in an AWS account. 
+Parameters:
+  TagName:
+    Description: Name of the Elastic Load Balancer
+    Type: String
+  TagConsumer:
+    Description: Name of the user
+    Type: String
+  TagCostcenter:
+    Description: Cost center
+    Type: String
+    MinLength: 1
+    MaxLength: 8
+    AllowedPattern: '[A-Z0-9]+'
+  TagEnvironment:
+    Description: Select the type of project environment
+    Type: String
+    AllowedValues:
+      - Test
+      - Development
+      - Production
+      - Sandbox
+      - Training
+      - UAT
+  EnableCrossZone:
+    Description: Select whether cross-zone balancing should be enabled
+    Default: 'No'
+    Type: String
+    AllowedValues:
+      - 'Yes'
+      - 'No'
+  EnableConnectionDraining:
+    Description: Select whether connection draining should be enabled
+    Default: 'Yes'
+    Type: String
+    AllowedValues:
+      - 'Yes'
+      - 'No'
+  ConnectionTimeout:
+    Description: Time in seconds after the load balancer closes all connections to a unhealthy instance
+    Type: String
+    Default: '300'
+    AllowedPattern: '[0-9]+'
+  HealthyThresholdValue:
+    Description: The number of consecutive health check successes required before an instance is considered to be healthy
+    Default: '10'
+    Type: String
+  UnhealthyThresholdValue:
+    Description: The number of consecutive health check failures required before an instance is considered to be unhealthy
+    Default: '2'
+    Type: String
+  IntervalValue:
+    Description: The amount of time, in seconds, between health checks of an individual instance
+    Default: '30'
+    Type: String
+  TimeOutValue:
+    Description: The amount of time, in seconds, during which no response means a failed health probe. The value must be less than IntervalValue
+    Default: '5'
+    Type: String
+  SSLCertificateArn:
+    Type: String
+  PathToPing:
+    Description: Specify the port and path to ping.
+    Default: 'HTTP:80/index.html'
+    Type: String
+Mappings:
+  RegionToVPC: # values are specific to the AWS account
+    ap-southeast-1:
+      VPC: vpc-apapapap
+    eu-west-1:
+      VPC: vpc-eueueueu
+    us-east-1:
+      VPC: vpc-usususus 
+  RegionToSubnets: # values are specific to the AWS account
+    ap-southeast-1:
+      Subnet1: subnet-ap1ap1ap
+      Subnet2: subnet-ap2ap2ap
+    eu-west-1:
+      Subnet1: subnet-eu1eu1eu
+      Subnet2: subnet-eu2eu2eu
+    us-east-1:
+      Subnet1: subnet-us1us1us
+      Subnet2: subnet-us2us2us
+  RegionToS3Bucket: # existing buckets in the AWS account
+    ap-southeast-1:
+      S3Bucket: my-bucket-sgp
+    eu-west-1:
+      S3Bucket: my-bucket-ire
+    us-east-1:
+      S3Bucket: my-bucket-usa
+Conditions:
+  CrossZoneCondition: !Equals [!Ref EnableCrossZone, 'Yes']
+  ConnectionDrainingCondition: !Equals [!Ref EnableConnectionDraining, 'Yes']
+  SSLCondition: !Not [!Equals [!Ref SSLCertificateArn, '']] # check if there is SSL certificate
+Resources:
+  ElbSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription:
+        Enable HTTP access for ELB via port 80
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 80
+          ToPort: 80
+          CidrIp: 0.0.0.0/0
+        - IpProtocol: tcp
+          FromPort: 443
+          ToPort: 443
+          CidrIp: 0.0.0.0/0
+      VpcId: 
+        !FindInMap
+          - RegionToVPC
+          - !Ref 'AWS::Region'
+          - VPC
+      Tags:
+        - Key: Costcenter
+          Value: !Ref TagCostcenter
+        - Key: Environment
+          Value: !Ref TagEnvironment
+        - Key: Consumer
+          Value: !Ref TagConsumer
+        - Key: Name
+          Value: !Ref TagName
+  ElasticLoadBalancer:
+    Type: AWS::ElasticLoadBalancing::LoadBalancer
+    Properties:
+      CrossZone: !If [CrossZoneCondition, True, False]
+      ConnectionDrainingPolicy:
+        Enabled: !If [ConnectionDrainingCondition, True, False]
+        Timeout: !Ref ConnectionTimeout
+      HealthCheck:
+        Target: !Ref PathToPing
+        HealthyThreshold: !Ref HealthyThresholdValue
+        UnhealthyThreshold: !Ref UnhealthyThresholdValue
+        Interval: !Ref IntervalValue
+        Timeout: !Ref TimeOutValue
+      Listeners:
+        - LoadBalancerPort: '80' 
+          InstancePort: '80'
+          Protocol: HTTP 
+        - !If [SSLCondition, { LoadBalancerPort: '443', InstancePort: '80', Protocol: HTTPS, SSLCertificateId: !Ref SSLCertificateArn}, !Ref "AWS::NoValue"]
+      Scheme: internal
+      SecurityGroups:
+        - !Ref ElbSecurityGroup
+      Subnets: 
+        - !FindInMap
+          - RegionToSubnets
+          - !Ref 'AWS::Region'
+          - Subnet1
+        - !FindInMap
+          - RegionToSubnets
+          - !Ref 'AWS::Region'
+          - Subnet2
+      Tags:
+        - Key: Costcenter
+          Value: !Ref TagCostcenter
+        - Key: Environment
+          Value: !Ref TagEnvironment
+        - Key: Consumer
+          Value: !Ref TagConsumer
+        - Key: Name
+          Value: !Ref TagName
+      AccessLoggingPolicy:
+        S3BucketName: !FindInMap [RegionToS3Bucket, !Ref 'AWS::Region', S3Bucket]
+        S3BucketPrefix: !Join [ "-", [!Ref TagEnvironment, !Ref TagCostcenter, !Ref TagConsumer]] # used to identify access logs from different ELB
+        Enabled: 'true'
+        EmitInterval: '5' # in minutes. can only take 5 or 60 as values
+Outputs:
+  URL:
+    Description: Elastic Load Balancer URL
+    Value: !Join
+      - ''
+      - - 'http://'
+        - !GetAtt ElasticLoadBalancer.DNSName
