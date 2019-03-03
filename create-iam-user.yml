@@ -1,0 +1,50 @@
+AWSTemplateFormatVersion: 2010-09-09
+Description: >-
+  This template creates an IAM user. There are three IAM policies
+  attached to the user - one AWS managed policy, one customer managed
+  policy and one inline policy. 
+Resources:
+  MyUser:
+    Type: 'AWS::IAM::User'
+    Properties:
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/ReadOnlyAccess
+        - !Join
+            - ''
+            - - 'arn:aws:iam::'
+              - !Ref 'AWS::AccountId'
+              - ':policy/my_customer_managed_policy'
+      UserName: demo-user
+
+  InlinePolicy:
+    Type: AWS::IAM::Policy
+    Properties:
+      Users:
+      - !Ref MyUser
+      PolicyName: demo-policy
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement: 
+        - Sid: 'AllowIamKeyRotation'
+          Effect: Allow
+          Action:
+          - 'iam:DeleteAccessKey'
+          - 'iam:GetAccessKeyLastUsed'
+          - 'iam:UpdateAccessKey'
+          - 'iam:CreateAccessKey'
+          - 'iam:ListAccessKeys'
+          Resource:
+          - !GetAtt MyUser.Arn
+        
+  MyAccessKey:
+    Type: 'AWS::IAM::AccessKey'
+    Properties:
+      UserName: 
+        !Ref MyUser
+Outputs:
+  AccessKey:
+    Value: !Ref MyAccessKey
+    Description: 'AWS Access Key for user.'
+  SecretKey:
+    Value: !GetAtt MyAccessKey.SecretAccessKey
+    Description: 'AWS Secret Key for user'
