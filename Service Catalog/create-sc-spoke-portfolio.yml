@@ -1,0 +1,116 @@
+---
+AWSTemplateFormatVersion: 2010-09-09
+Description: >-
+  This CloudFormation template creates portfolios in the spoke account. The
+  portfolio ID and product ID are obtained from the outputs of the CloudFormation
+  template that created the hub portfolios. This template also imports the ARN of
+  the role that will be used by Service Catalog to launch products for users.
+Mappings: 
+  CostCenter: 
+    "1112223334444":
+      ID: "0987654321"
+  PortfolioID: 
+    us-east-1: 
+      "ID": "port-us1us1us1us1u"
+    eu-west-1: 
+      "ID": "port-eu1eu1eu1eu1e"
+    ap-southeast-1: 
+      "ID": "port-ap1ap1ap1ap1a"
+  ELBProductID: 
+    us-east-1: 
+      "ID": "prod-us2us2us2us2u"
+    eu-west-1: 
+      "ID": "prod-eu2eu2eu2eu2e"
+    ap-southeast-1: 
+      "ID": "prod-ap2ap2ap2ap2a"
+  S3ProductID: 
+    us-east-1: 
+      "ID": "prod-us3us3us3us3u"
+    eu-west-1: 
+      "ID": "prod-eu3eu3eu3eu3e"
+    ap-southeast-1: 
+      "ID": "prod-ap3ap3ap3ap3a"
+Parameters:
+  IAMRoleName1:
+    Description: Enter IAM role name (not ARN) of the end-user who will use Service Catalog to launch the products. This IAM role should exists in the spoke account.
+    Type: String
+    Default: ""
+  IAMRoleName2:
+    Description: Enter IAM role name (not ARN) of the end-user who will use Service Catalog to launch the products. This IAM role should exists in the spoke account.
+    Type: String
+    Default: ""
+Resources:
+  AcceptedPortfolioShare:
+    Type: "AWS::ServiceCatalog::AcceptedPortfolioShare"
+    Properties:
+      AcceptLanguage: "en"
+      PortfolioId: !FindInMap [PortfolioID, !Ref "AWS::Region", 'ID'] 
+  CostCenterTagOption:
+    Type: "AWS::ServiceCatalog::TagOption"
+    Properties:
+      Key: "Costcenter"
+      Value: !FindInMap [CostCenter, !Ref "AWS::AccountId", 'ID']
+  AdministratorPortfolio:
+    Type: "AWS::ServiceCatalog::Portfolio"
+    DependsOn: AcceptedPortfolioShare
+    Properties:
+      AcceptLanguage: "en"
+      Description: "This portfolio enables end-users to deploy products that are managed by the Demo Provider"
+      DisplayName: "Sample Spoke Portfolio"
+      ProviderName: "Demo Provider"
+  AdminPortfolioPrincipalAssociation:
+    Type: "AWS::ServiceCatalog::PortfolioPrincipalAssociation"
+    Properties:
+      AcceptLanguage: "en"
+      PortfolioId: !Ref AdministratorPortfolio
+      PrincipalARN: !Sub arn:aws:iam::${AWS::AccountId}:role/${IAMRoleName1}
+      PrincipalType: "IAM"
+  AdminPortfolioPrincipalAssociation2:
+    Type: "AWS::ServiceCatalog::PortfolioPrincipalAssociation"
+    Properties:
+      AcceptLanguage: "en"
+      PortfolioId: !Ref AdministratorPortfolio
+      PrincipalARN: !Sub arn:aws:iam::${AWS::AccountId}:role/${IAMRoleName2}
+      PrincipalType: "IAM"
+  ELBAdminPortfolioProductAssociation:
+    Type: "AWS::ServiceCatalog::PortfolioProductAssociation"
+    Properties:
+      AcceptLanguage: "en"
+      PortfolioId: !Ref AdministratorPortfolio
+      ProductId: !FindInMap [ELBProductID, !Ref "AWS::Region", 'ID']  
+      SourcePortfolioId:  !FindInMap [PortfolioID, !Ref "AWS::Region", 'ID']
+  S3AdminPortfolioProductAssociation:
+    Type: "AWS::ServiceCatalog::PortfolioProductAssociation"
+    Properties:
+      AcceptLanguage: "en"
+      PortfolioId: !Ref AdministratorPortfolio
+      ProductId: !FindInMap [S3ProductID, !Ref "AWS::Region", 'ID']  
+      SourcePortfolioId:  !FindInMap [PortfolioID, !Ref "AWS::Region", 'ID'] 
+  CostCenterAdminPortfolioTagOptionAssociation:
+    Type: "AWS::ServiceCatalog::TagOptionAssociation"
+    Properties:
+      ResourceId: !Ref AdministratorPortfolio
+      TagOptionId: !Ref CostCenterTagOption
+  ELBAnalystLaunchConstraint:
+    Type: "AWS::ServiceCatalog::LaunchRoleConstraint"
+    DependsOn:
+      - AdministratorPortfolio
+    Properties:
+      AcceptLanguage: "en"
+      Description: "This launch constraint allows end-users to launch ELB products without having any ELB permissions in their IAM role policy"
+      PortfolioId: !Ref AdministratorPortfolio
+      ProductId: !FindInMap [ELBProductID, !Ref "AWS::Region", 'ID']  
+      RoleArn: 
+        Fn::ImportValue: ServiceCatalogProductLaunchRoleArn
+  S3AnalystLaunchConstraint:
+    Type: "AWS::ServiceCatalog::LaunchRoleConstraint"
+    DependsOn:
+      - AdministratorPortfolio
+      - S3AdminPortfolioProductAssociation
+    Properties:
+      AcceptLanguage: "en"
+      Description: "This launch constraint allows end-users to launch S3 products without having any S3 permissions in their IAM role policy"
+      PortfolioId: !Ref AdministratorPortfolio
+      ProductId: !FindInMap [S3ProductID, !Ref "AWS::Region", 'ID']  
+      RoleArn: 
+        Fn::ImportValue: ServiceCatalogProductLaunchRoleArn
