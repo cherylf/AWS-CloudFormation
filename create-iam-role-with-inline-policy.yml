@@ -1,0 +1,52 @@
+AWSTemplateFormatVersion: 2010-09-09
+Description: >-
+  This template creates an IAM role with one inline policy.
+  The inline policy allows the role to modify EC2 security 
+  groups if the EC2 instance has a Name tag with a value of
+  'demo-ec2'. The role also has IAM read-only permissions.
+Resources:
+  MyRole:
+    Type: 'AWS::IAM::Role'
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              AWS: 'arn:aws:iam::111222333444:root'
+            Action:
+              - 'sts:AssumeRole'
+      RoleName: demo-example
+  MyRolePolicy:
+    Type: 'AWS::IAM::Policy'
+    Properties:
+      PolicyName: demo-policy
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Sid: 'AllowEC2SecurityGroupPermissions'
+            Effect: Allow
+            Action:
+              - 'ec2:UpdateSecurityGroupRuleDescriptionsEgress'
+              - 'ec2:UpdateSecurityGroupRuleDescriptionsIngress'
+              - 'ec2:RevokeSecurityGroupEgress'
+              - 'ec2:RevokeSecurityGroupIngress'
+              - 'ec2:AuthorizeSecurityGroupEgress'
+              - 'ec2:AuthorizeSecurityGroupIngress'
+            Resource: 'arn:aws:ec2:*:*:security-group/*'
+            Condition:
+              StringEquals:
+                'ec2:ResourceTag/Name': 'demo-ec2'
+          - Sid: 'AllowIamReadOnlyPermissions'
+            Effect: Allow
+            Action:
+              - 'iam:ListRoles'
+              - 'iam:ListPolicies'
+              - 'iam:GetRole'
+              - 'iam:GetRolePolicy'
+              - 'iam:GetPolicy'
+              - 'iam:ListAttachedRolePolicies'
+              - 'iam:ListRolePolicies'
+            Resource: '*'
+      Roles:
+        - !Ref MyRole
