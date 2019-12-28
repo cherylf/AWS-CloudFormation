@@ -1,0 +1,75 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: >-
+  This Lambda function will be triggered when the Config rule for
+  S3 bucket policy grantee check detects a change in the compliance
+  status of any buckets within an account
+Parameters:
+  LambdaRoleName:
+    Type: String
+  LambdaFunctionName:
+    Type: String
+  S3BucketName:
+    Type: String
+Resources:
+  LambdaServiceRole:
+    Type: 'AWS::IAM::Role'
+    Properties:
+      RoleName: !Ref LambdaRoleName
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          -
+            Effect: 'Allow'
+            Principal:
+              Service:
+                - 'lambda.amazonaws.com' 
+            Action: 
+              - 'sts:AssumeRole'
+      Path: '/'
+      Policies:
+        -
+          PolicyName: 'AllowPermissionForSnsAndConfig'
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              -
+                Effect: 'Allow'
+                Action: 
+                  - 'logs:CreateLogGroup'
+                  - 'logs:CreateLogStream'
+                  - 'logs:PutLogEvents'
+                  - 'sns:*'
+                  - 'config:*'
+                Resource: '*'
+              -
+                Sid: 'AllowS3GetObject'
+                Effect: 'Allow'
+                Action: 
+                  - 's3:GetObject'
+                Resource: !Sub 'arn:aws:s3:::{S3BucketName}/*'
+  LambdaFunction:
+    Type: 'AWS::Lambda::Function'
+    DependsOn: LambdaServiceRole
+    Properties:
+      Description: >-
+        This Lambda function checks S3 bucket with non-compliant
+        bucket policy and sends the list of non-compliant S3 buckets
+        to a SNS topic.
+      FunctionName: !Ref LambdaFunctionName
+      Handler: 'lambda-s3-bucket-policy-grantee-check.lambda_handler'
+      Role: !GetAtt LambdaServiceRole.Arn
+      Code: 
+        S3Bucket: !Ref S3BucketName
+        S3Key: 'templates/LambdaS3BucketPolicyGranteeCheck.zip'
+      Runtime: 'python3.7'
+      Timeout: 60
+Outputs:
+  LambdaRoleArn:
+    Value: !GetAtt LambdaServiceRole.Arn
+    Description: 'ARN of the Lambda service role'
+  LambdaRoleId:
+    Value: !GetAtt LambdaServiceRole.RoleId
+    Description: 'Resource ID of the Lambda service role'
+  LambdaFunctionArn:
+    Value: !GetAtt LambdaFunction.Arn
+    Description: 'Lambda function ARN'
