@@ -1,0 +1,62 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: >-
+  This stack creates the permission boundary policy that must be attached to
+  application team's admin role.
+Parameters:
+  ApplicationName:
+    Type: String
+Resources:
+  TeamAdminPermissionBoundaryPolicy:
+    Type: 'AWS::IAM::ManagedPolicy'
+    Properties:
+      ManagedPolicyName: !Sub '${ApplicationName}-team-admin-permission-boundary-policy'
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Sid: 'AllowPassRoleWithSpecificApplicationNamePrefix'
+            Effect: 'Allow'
+            Resource: !Sub 'arn:aws:iam::${AWS::AccountId}:role/${ApplicationName}*'
+            Action:
+              - 'iam:PassRole'
+          - Sid: 'AllowPassRoleToSpecificAWSService'
+            Effect: 'Allow'
+            Resource: '*'
+            Action:
+              - 'iam:PassRole'
+            Condition:
+              StringEquals:
+                iam:PassedToService:
+                  - kms.amazonaws.com
+                  - lambda.amazonaws.com
+          - Sid: 'TeamAdminPermissionBoundary'
+            Effect: 'Allow'
+            Resource: '*'
+            Action:
+              - 'aws-portal:ViewUsage'
+              - 'aws-portal:ViewBilling'
+              - 'iam:List*'
+              - 'iam:Get*'
+              - 'iam:CreateRole'
+              - 'iam:CreateServiceLinkedRole'
+              - 'iam:DeleteRole'
+              - 'iam:UpdateRole'
+              - 'iam:DetachRolePolicy'
+              - 'iam:AttachRolePolicy'
+              - 'iam:PutRolePolicy'
+              - 'iam:CreatePolicy'
+              - 'iam:CreatePolicyVersion'
+              - 'iam:DeletePolicy'
+              - 'iam:DeletePolicyVersion'
+              - 'iam:SetDefaultPolicyVersion'
+              - 'iam:PutRolePermissionsBoundary'
+              - 's3:*'
+              - 'kms:*'
+              - 'lambda:*'
+            Condition:
+              StringEquals:
+                aws:RequestedRegion:
+                  - 'us-east-1'
+                  - 'us-west-2'
+Outputs:
+  TeamAdminPermissionBoundaryPolicyArn:
+    Value: !Ref TeamAdminPermissionBoundaryPolicy
