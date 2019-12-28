@@ -1,0 +1,51 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: >-
+  This stack creates the permission boundary policy that must be attached to
+  all roles created by the application team. The permission boundary contains
+  all approved services. 
+Parameters:
+  ApplicationName:
+    Type: String
+Resources:
+  TeamWidePermissionBoundaryPolicy:
+    Type: 'AWS::IAM::ManagedPolicy'
+    Properties:
+      ManagedPolicyName: !Sub '${ApplicationName}-team-wide-permission-boundary-policy'
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Sid: 'AllowPassRoleWithSpecificApplicationNamePrefix'
+            Effect: 'Allow'
+            Resource: !Sub 'arn:aws:iam::${AWS::AccountId}:role/${ApplicationName}*'
+            Action:
+              - 'iam:PassRole'
+          - Sid: 'AllowPassRoleToSpecificAWSService'
+            Effect: 'Allow'
+            Resource: '*'
+            Action:
+              - 'iam:PassRole'
+            Condition:
+              StringEquals:
+                iam:PassedToService:
+                  - kms.amazonaws.com
+                  - lambda.amazonaws.com
+          - Sid: 'TeamWidePermissionBoundary'
+            Effect: 'Allow'
+            Resource: '*'
+            Action:
+              - 'aws-portal:ViewUsage'
+              - 'aws-portal:ViewBilling'
+              - 'iam:List*'
+              - 'iam:Get*'
+              - 'iam:PassRole'
+              - 's3:*'
+              - 'kms:*'
+              - 'lambda:*'
+            Condition:
+              StringEquals:
+                aws:RequestedRegion:
+                  - 'us-east-1'
+                  - 'us-west-2'
+Outputs:
+  TeamWidePermissionBoundaryPolicyArn:
+    Value: !Ref TeamWidePermissionBoundaryPolicy
