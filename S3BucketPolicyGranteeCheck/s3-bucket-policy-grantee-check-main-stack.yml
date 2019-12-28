@@ -1,0 +1,108 @@
+AWSTemplateFormatVersion: 2010-09-09
+Description: >- 
+  Monitoring Config rule for S3 bucket policy grantee check with CloudWatch Events
+Parameters:
+  awsPrincipals:
+    Type: String
+    Default: ''
+    Description: >-
+      Comma-separated list of principals such as IAM User ARNs, IAM Role ARNs
+      and AWS accounts, for example 'arn:aws:iam::111122223333:user/Alice,
+      arn:aws:iam::444455556666:role/Bob, 123456789012'.
+  servicePrincipals:
+    Type: String
+    Default: ''
+    Description: >-
+      Comma-separated list of service principals, for example
+      'cloudtrail.amazonaws.com, lambda.amazonaws.com'.
+  federatedUsers:
+    Type: String
+    Default: ''
+    Description: >-
+      Comma-separated list of identity providers for web identity federation
+      such as Amazon Cognito and SAML identity providers. For example
+      'cognito-identity.amazonaws.com,
+      arn:aws:iam::111122223333:saml-provider/my-provider'.
+  ipAddresses:
+    Type: String
+    Default: ''
+    Description: >-
+      Comma-separated list of CIDR formatted IP addresses, for example
+      '10.0.0.1, 192.168.1.0/24, 2001:db8::/32'.
+  vpcIds:
+    Type: String
+    Default: ''
+    Description: >-
+      Comma-separated list of Amazon Virtual Private Clouds (Amazon VPC) IDs,
+      for example 'vpc-1234abc0, vpc-ab1234c0'.
+  ConfigRuleName:
+    Type: String
+    MinLength: '1'
+    ConstraintDescription: This parameter is required.
+  CloudWatchRuleName:
+    Type: String
+    MinLength: '1'
+    ConstraintDescription: This parameter is required.
+  SnsTopicName:
+    Type: String
+    MinLength: '1'
+    ConstraintDescription: This parameter is required.
+  LambdaFunctionName:
+    Type: String
+    MinLength: '1'
+    ConstraintDescription: This parameter is required.
+  S3BucketName:
+    Type: String
+    MinLength: '1'
+    ConstraintDescription: This parameter is required.
+    Description: Name of the bucket where the templates are stored.
+Resources:
+  SnsTopic:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: !Sub "https://${S3BucketName}.s3.amazonaws.com/create-sns-topic.yml"
+      Parameters:
+        SnsTopicName: !Ref SnsTopicName
+  ConfigRule:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: !Sub "https://${S3BucketName}.s3.amazonaws.com/s3-bucket-policy-grantee-check-modified.yml"
+      Parameters:
+        ConfigRuleName: !Ref ConfigRuleName
+        awsPrincipals: !Ref awsPrincipals
+        servicePrincipals: !Ref servicePrincipals
+        federatedUsers: !Ref federatedUsers
+        ipAddresses: !Ref ipAddresses
+        vpcIds: !Ref vpcIds
+  LambdaFunction:
+    Type: AWS::CloudFormation::Stack
+    DependsOn:
+      - "ConfigRule"
+      - "SnsTopic"
+    Properties:
+      TemplateURL: !Sub "https://${S3BucketName}.s3.amazonaws.com/create-lambda-function.yml"
+  CloudWatchRule:
+    Type: AWS::Events::Rule
+    DependsOn: 'LambdaFunction'
+    Properties: 
+      Description: Monitoring Config rule for S3 bucket policy grantee check with CloudWatch Events
+      EventPattern:
+        source:
+          - "aws.config"
+        detail-type:
+          - "Config Rules Compliance Change"
+        detail:
+          configRuleName:
+            - !GetAtt ConfigRule.Outputs.ConfigRuleNameString
+      Name: !Ref CloudWatchRuleName
+      State: "ENABLED"
+      Targets: 
+        - Arn: !GetAtt LambdaFunction.Outputs.LambdaFunctionArn
+          Id: !Ref LambdaFunctionName
+  PermissionsForCloudWatchToInvokeLambda:
+    Type: AWS::Lambda::Permission
+    Properties:
+      FunctionName: !Ref LambdaFunctionName
+      Action: "lambda:InvokeFunction"
+      Principal: "events.amazonaws.com"
+      SourceArn: !GetAtt CloudWatchRule.Arn
