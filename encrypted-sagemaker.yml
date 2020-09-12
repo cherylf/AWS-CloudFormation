@@ -1,0 +1,77 @@
+---
+AWSTemplateFormatVersion: '2010-09-09'
+Parameters:                                                                                                       
+  SecurityGroupIds:  
+    Type: String	
+  SubnetId:
+    Type: String
+Resources:
+  IAMRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: uat02b-sagemaker-role
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          -
+            Effect: "Allow"
+            Principal:
+              Service:
+                - "sagemaker.amazonaws.com"
+            Action:
+              - "sts:AssumeRole"
+      Path: "/"
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/AmazonSageMakerFullAccess
+        - arn:aws:iam::aws:policy/AmazonS3FullAccess
+  KMSKey:
+    Type: AWS::KMS::Key
+    Properties: 
+      EnableKeyRotation: true
+      KeyPolicy:
+        Version: '2012-10-17'
+        Statement:
+        - Effect: Allow
+          Principal:
+            AWS: !Sub 'arn:aws:iam::${AWS::AccountId}:root'
+          Action: 'kms:*'
+          Resource: '*'
+        - Effect: Allow
+          Principal:
+            AWS: '*'
+          Action:
+          - 'kms:Encrypt'
+          - 'kms:Decrypt'
+          - 'kms:ReEncrypt*'
+          - 'kms:GenerateDataKey*'
+          - 'kms:CreateGrant'
+          - 'kms:ListGrants'
+          - 'kms:DescribeKey'
+          Resource: '*'
+      KeyUsage: ENCRYPT_DECRYPT
+      PendingWindowInDays: 7
+      Tags:
+        - Key: Name
+          Value: uat02-key
+        - Key: Application
+          Value: POC
+        - Key: Environment
+          Value: Test
+  KMSKeyAlias:
+    DependsOn: KMSKey
+    Type: AWS::KMS::Alias
+    Properties:
+      AliasName: alias/uat02-key
+      TargetKeyId: !Ref KMSKey
+  SagemakerNotebookInstance:
+    Type: AWS::SageMaker::NotebookInstance
+    Properties: 
+      InstanceType: ml.t2.medium
+      NotebookInstanceName: uat02b-notebook
+      RoleArn: !GetAtt IAMRole.Arn
+      RootAccess: Disabled
+      DirectInternetAccess: Disabled
+      KmsKeyId: !Ref KMSKey
+      SecurityGroupIds: 
+        - !Ref SecurityGroupIds
+      SubnetId: !Ref SubnetId

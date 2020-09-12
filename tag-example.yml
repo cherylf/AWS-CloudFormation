@@ -1,0 +1,27 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: >
+  Most CloudFormation resources take in "List of Tag"
+  as the input type for tags. But Cognito user pool
+  tags take in "Json"
+Resources:
+  UserPool1:
+    Type: AWS::Cognito::UserPool
+    Properties: 
+      UserPoolName: uat01a-cognito-user-pool
+  UserPool2:
+    Type: AWS::Cognito::UserPool
+    Properties: 
+      UserPoolName: uat01b-cognito-user-pool
+      UserPoolTags: #Json
+        Application: POC
+        Environment: Test
+  
+    S3Bucket:
+    Type: AWS::S3::Bucket
+    Properties: 
+      BucketName: !Sub 'uat01a-test-bucket-${AWS::AccountId}'
+      Tags: #List of Tag
+        - Key: Application
+          Value: POC
+        - Key: Environment
+          Value: Test

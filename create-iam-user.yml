@@ -3,17 +3,21 @@ Description: >-
   This template creates an IAM user. There are three IAM policies
   attached to the user - one AWS managed policy, one customer managed
   policy and one inline policy. 
+
+  Learning points: Join and Sub functions under the ManagedPolicyArns 
+  section. The Sub function is simpler and more readable in this case. 
 Resources:
   MyUser:
     Type: 'AWS::IAM::User'
     Properties:
       ManagedPolicyArns:
         - arn:aws:iam::aws:policy/ReadOnlyAccess
+        - !Sub 'arn:aws:iam::${AWS::AccountId}:policy/my_customer_managed_policy'
         - !Join
             - ''
             - - 'arn:aws:iam::'
               - !Ref 'AWS::AccountId'
-              - ':policy/my_customer_managed_policy'
+              - ':policy/another_customer_managed_policy'
       UserName: demo-user
 
   InlinePolicy:
@@ -21,7 +25,7 @@ Resources:
     Properties:
       Users:
       - !Ref MyUser
-      PolicyName: demo-policy
+      PolicyName: demo-inline-policy
       PolicyDocument:
         Version: '2012-10-17'
         Statement: 
@@ -35,7 +39,23 @@ Resources:
           - 'iam:ListAccessKeys'
           Resource:
           - !GetAtt MyUser.Arn
-        
+  
+  ManagedPolicy:
+    Type: AWS::IAM::ManagedPolicy
+    Properties: 
+      ManagedPolicyName: demo-managed-policy
+      Users: 
+        - !Ref MyUser
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement: 
+        - Sid: 'AllowIamReadOnle'
+          Effect: Allow
+          Action:
+          - 'iam:List*'
+          - 'iam:Get*'
+          Resource: '*'
+ 
   MyAccessKey:
     Type: 'AWS::IAM::AccessKey'
     Properties:

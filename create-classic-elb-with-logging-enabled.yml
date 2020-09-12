@@ -1,6 +1,15 @@
 AWSTemplateFormatVersion: "2010-09-09"
-Description: 
-  This template creates a (classic) elastic load balancer and a security group that will be assigned to the load balancer. Logs from the load balancer will be saved in existing S3 buckets in an AWS account. 
+Description: >-
+  This template creates a (classic) elastic load balancer and 
+  a security group that will be assigned to the load balancer. 
+  Logs from the load balancer will be saved in existing S3 buckets 
+  in an AWS account. 
+
+  Learning points: Connection draining policy takes in a boolean 
+  value for the "Enabled" field. To do this, we use a parameter called
+  EnableConnectionDraining with Type = String and then use 
+  ConnectionDrainingCondition to create the boolean value.
+
 Parameters:
   TagName:
     Description: Name of the Elastic Load Balancer
@@ -65,6 +74,7 @@ Parameters:
     Description: Specify the port and path to ping.
     Default: 'HTTP:80/index.html'
     Type: String
+
 Mappings:
   RegionToVPC: # values are specific to the AWS account
     ap-southeast-1:
@@ -90,10 +100,12 @@ Mappings:
       S3Bucket: my-bucket-ire
     us-east-1:
       S3Bucket: my-bucket-usa
+
 Conditions:
   CrossZoneCondition: !Equals [!Ref EnableCrossZone, 'Yes']
   ConnectionDrainingCondition: !Equals [!Ref EnableConnectionDraining, 'Yes']
   SSLCondition: !Not [!Equals [!Ref SSLCertificateArn, '']] # check if there is SSL certificate
+
 Resources:
   ElbSecurityGroup:
     Type: AWS::EC2::SecurityGroup
