@@ -1,0 +1,70 @@
+AWSTemplateFormatVersion: 2010-09-09
+Description: Cloudformation template for creation of My policies
+Parameters:
+  Environment:
+    Type: String
+    Description: Environment variable
+    AllowedPattern: ^[0-9a-zA-Z]+([0-9a-zA-Z-]*[0-9a-zA-Z])*$
+  Application:
+    Type: String
+    Description: Application name variable
+    AllowedPattern: ^[0-9a-zA-Z]+([0-9a-zA-Z-]*[0-9a-zA-Z])*$
+  BucketName:
+    Type: String
+    Description: S3 bucket name for the My assets. Bucket must exists.
+    AllowedPattern: ^[0-9a-zA-Z]+([0-9a-zA-Z-]*[0-9a-zA-Z])*$
+    ConstraintDescription: Bucket name can include numbers, lowercase letters, uppercase letters, and hyphens (-). It cannot start or end with a hyphen (-).
+    
+Resources:
+  # IAM Role
+  # ------------------------------------------------------------
+  MyS3Role:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: [s3.amazonaws.com]
+            Action: ['sts:AssumeRole']
+      Path: /
+      Policies:
+        - PolicyName: !Sub My-Policy-${Environment}-${Application}
+          PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+              - Sid: VisualEditor0
+                Effect: Allow
+                Action: 's3:ListBucket'
+                Resource: !Sub 'arn:aws:s3:::${BucketName}'
+                Condition:
+                  StringEquals:
+                    's3:prefix':
+                      - ''
+                      - FolderOne/
+                      - FolderTwo/
+                    's3:delimiter': /
+              - Sid: VisualEditor1
+                Effect: Allow
+                Action: 's3:ListBucket'
+                Resource: !Sub 'arn:aws:s3:::${BucketName}'
+                Condition:
+                  StringLike:
+                    's3:prefix':
+                      - !Sub 'FolderOne/${Application}/*'
+                      - !Sub 'FolderTwo/${Application}/*'
+              - Sid: VisualEditor2
+                Effect: Allow
+                Action:
+                  - 's3:ListAllMyBuckets'
+                  - 's3:GetBucketLocation'
+                Resource: '*'
+              - Sid: VisualEditor3
+                Effect: Allow
+                Action:
+                  - 's3:PutObject'
+                  - 's3:GetObject'
+                Resource:
+                  - !Sub 'arn:aws:s3:::${BucketName}/FolderOne/${Application}/*'
+                  - !Sub 'arn:aws:s3:::${BucketName}/FolderTwo/${Application}/*'

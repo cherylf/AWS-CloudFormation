@@ -1,0 +1,61 @@
+AWSTemplateFormatVersion: 2010-09-09
+Description: Configure SNS Topic for publishing CloudTrail delivery of logs
+Parameters:  
+  pCloudTrailSNSTopic:
+    Description: 'SNS topic for CloudTrail Publish to SNS'
+    Type: String
+Resources:
+  rCloudTrailSNSTopic:
+    Type: 'AWS::SNS::Topic'
+    Properties:
+      DisplayName: !Ref pCloudTrailSNSTopic
+      TopicName: !Ref pCloudTrailSNSTopic
+  rCloudTrailSNSTopicPolicy: 
+    Type: AWS::SNS::TopicPolicy
+    Properties: 
+      PolicyDocument: 
+        Version: '2008-10-17'
+        Id: __default_policy_ID
+        Statement:
+          - Sid: __default_statement_ID
+            Effect: Allow
+            Principal:
+              AWS: '*'
+            Action:
+              - 'SNS:GetTopicAttributes'
+              - 'SNS:SetTopicAttributes'
+              - 'SNS:AddPermission'
+              - 'SNS:RemovePermission'
+              - 'SNS:DeleteTopic'
+              - 'SNS:Subscribe'
+              - 'SNS:ListSubscriptionsByTopic'
+              - 'SNS:Publish'
+              - 'SNS:Receive'
+            Resource: !Sub 'arn:aws:sns:${AWS::Region}:${AWS::AccountId}:${pCloudTrailSNSTopic}'
+            Condition:
+              StringEquals:
+                'AWS:SourceOwner': !Ref AWS::AccountId
+          - Sid: AWSCloudTrailSNSPolicy20150319
+            Effect: Allow
+            Principal:
+              Service: cloudtrail.amazonaws.com
+            Action: 'SNS:Publish'
+            Resource: !Sub 'arn:aws:sns:${AWS::Region}:${AWS::AccountId}:${pCloudTrailSNSTopic}'
+          - Sid: __console_sub_0
+            Effect: Allow
+            Principal:
+              AWS:
+                - !Sub 'arn:aws:iam::${AWS::AccountId}:root'
+            Action: 
+              - 'SNS:Subscribe'
+              - 'SNS:Receive'
+            Resource: !Sub 'arn:aws:sns:${AWS::Region}:${AWS::AccountId}:${pCloudTrailSNSTopic}'
+      Topics: 
+        - !Ref rCloudTrailSNSTopic
+Outputs:
+  CloudTrailSNSTopic:
+    Description: Name of newly created SNS Topic
+    Value: !GetAtt rCloudTrailSNSTopic.TopicName
+  CloudTrailSNSTopicARN:
+    Description: Name of newly created SNS Topic
+    Value: !Ref rCloudTrailSNSTopic
