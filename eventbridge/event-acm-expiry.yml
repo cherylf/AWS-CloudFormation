@@ -1,0 +1,82 @@
+AWSTemplateFormatVersion: "2010-09-09"
+
+Description: >-
+  Create an EventBridge rule that will send a notification to a SNS topic
+  45 days before the ACM certificate expires. You can change the number of days
+  by running the aws acm put-account-configuration command.
+
+Parameters:
+  EventState:
+    Description: The state of the EventBridge rule
+    Type: String
+    AllowedValues:
+      - ENABLED
+      - DISABLED
+    Default: ENABLED
+
+  SnsTopicName:
+    Description: The name of the SNS topic
+    Type: String
+
+  SnsKmsMasterKeyId:
+    Description: The KMS master key ID to use for encrypting messages
+    Type: String
+
+  SnsEmailSubscriber:
+    Description: The email address to subscribe to the SNS topic
+    Type: String
+
+  Application:
+    Description: The name of the application
+    Type: String
+
+Resources:
+  MyRule:
+    Type: AWS::Events::Rule
+    Properties:
+      Name: cert-expiry-notifier
+      Description: To notify about upcoming ACM certificate expiry
+      State: !Ref EventState
+      EventBusName: default
+      EventPattern: |
+        {
+          "source": ["aws.acm"],
+          "detail-type": ["ACM Certificate Approaching Expiration"]
+        }
+      Targets:
+        - Arn: !Ref MyTopic
+          Id: !Ref SnsTopicName
+  
+  MyTopic:
+    Type: AWS::SNS::Topic
+    Properties:
+      TopicName: !Ref SnsTopicName
+      KmsMasterKeyId: !Ref SnsKmsMasterKeyId
+      Subscription:
+        - Endpoint: !Ref SnsEmailSubscriber
+          Protocol: email
+      Tags:
+        - Key: Application
+          Value: !Ref Application
+
+  MyTopicPolicy:
+    Type: AWS::SNS::TopicPolicy
+    Properties:
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: events.amazonaws.com
+            Action:
+              - "SNS:Publish"
+            Resource: !Ref MyTopic
+      Topics:
+        - !Ref MyTopic
+
+Outputs:
+  MyRuleArn:
+    Value: !GetAtt MyRule.Arn
+
+  MyTopicTopicArn:
+    Value: !Ref MyTopic
