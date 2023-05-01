@@ -1,4 +1,5 @@
 AWSTemplateFormatVersion: 2010-09-09
+
 Description: >-
   This template creates an IAM user. There are three IAM policies
   attached to the user - one AWS managed policy, one customer managed
@@ -6,6 +7,7 @@ Description: >-
 
   Learning points: Join and Sub functions under the ManagedPolicyArns 
   section. The Sub function is simpler and more readable in this case. 
+
 Resources:
   MyUser:
     Type: 'AWS::IAM::User'
@@ -61,6 +63,7 @@ Resources:
     Properties:
       UserName: 
         !Ref MyUser
+        
 Outputs:
   AccessKey:
     Value: !Ref MyAccessKey

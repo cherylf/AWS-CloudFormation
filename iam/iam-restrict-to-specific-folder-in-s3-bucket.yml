@@ -1,14 +1,19 @@
 AWSTemplateFormatVersion: 2010-09-09
-Description: Cloudformation template for creation of My policies
+
+Description: >-
+  A policy that restricts access to a specific folder in a S3 bucket.
+
 Parameters:
   Environment:
     Type: String
     Description: Environment variable
     AllowedPattern: ^[0-9a-zA-Z]+([0-9a-zA-Z-]*[0-9a-zA-Z])*$
+
   Application:
     Type: String
     Description: Application name variable
     AllowedPattern: ^[0-9a-zA-Z]+([0-9a-zA-Z-]*[0-9a-zA-Z])*$
+
   BucketName:
     Type: String
     Description: S3 bucket name for the My assets. Bucket must exists.
@@ -16,8 +21,6 @@ Parameters:
     ConstraintDescription: Bucket name can include numbers, lowercase letters, uppercase letters, and hyphens (-). It cannot start or end with a hyphen (-).
     
 Resources:
-  # IAM Role
-  # ------------------------------------------------------------
   MyS3Role:
     Type: AWS::IAM::Role
     Properties:

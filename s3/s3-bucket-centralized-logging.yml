@@ -1,27 +1,19 @@
 AWSTemplateFormatVersion: 2010-09-09
+
 Description: >-
   A bucket holding access logs for a selected region. This bucket
-  must be in the same region as the source bucket. This template 
-  works in us-east-1 region because of the location of the SNS topic.
+  must be in the same region as the source bucket. The SNS topic
+  must also exist in the same region as the source bucket.
+
 Parameters:
   S3BucketName:
     Type: String
     Description: Enter the S3 bucket name
-  ApplicationTag:
-    Type: String
-    Description: Enter application name
-  ConsumerTag:
-    Type: String
-    Description: Enter resource owner's email address
-  CostcenterTag:
-    Type: String
-    Description: Enter cost center
-  DivisionTag:
-    Type: String
-    Description: Enter division
+
   EnvironmentTag:
     Type: String
     Description: Enter environment
+
   VersioningEnabled:
     Type: String
     Default: Enabled
@@ -29,8 +21,10 @@ Parameters:
       - Enabled
       - Suspended
     Description: Versioning Status
+
   ExistingS3EventNotificationSnsTopic:
     Type: String
+
 Resources:
   S3Bucket:
     DeletionPolicy: Retain
@@ -54,16 +48,9 @@ Resources:
       Tags:
         - Key: Name
           Value: !Join ['-', [!Ref S3BucketName, !Ref 'AWS::Region']]
-        - Key: Application
-          Value: !Ref ApplicationTag
-        - Key: Consumer
-          Value: !Ref ConsumerTag
-        - Key: Costcenter
-          Value: !Ref CostcenterTag
-        - Key: Division
-          Value: !Ref DivisionTag
         - Key: Environment
           Value: !Ref EnvironmentTag
+
 Outputs:
   S3BucketName:
     Value: !Ref S3Bucket
